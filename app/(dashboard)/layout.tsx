@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, User } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardLayout({
   children,
@@ -44,15 +45,17 @@ export default function DashboardLayout({
               <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">POS Supermarket</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-full">
-                <User className="h-4 w-4 text-slate-500" />
-                <span className="text-sm font-medium text-slate-700">
-                  {session.user.name}
-                </span>
-                <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium capitalize">
-                  {session.user.role}
-                </span>
-              </div>
+              <Link href="/profile">
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors cursor-pointer">
+                  <User className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {session.user.name}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium capitalize">
+                    {session.user.role}
+                  </span>
+                </div>
+              </Link>
               <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/login" })} className="text-slate-600 hover:text-slate-800 hover:bg-slate-100">
                 <LogOut className="h-4 w-4 mr-2" /> Sign out
               </Button>
