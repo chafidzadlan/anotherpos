@@ -4,8 +4,9 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User } from "lucide-react";
+import { Loader2, LogOut, User, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { usePOSToast } from "@/hooks/use-toast";
 
 export default function DashboardLayout({
   children,
@@ -14,12 +15,23 @@ export default function DashboardLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { toast } = usePOSToast();
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     }
   }, [status, router]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut({ callbackUrl: "/login" });
+      toast.success("Successfully signed out!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error signing out. Please try again.");
+    }
+  };
 
   if (status === "loading") {
     return (
@@ -33,6 +45,8 @@ export default function DashboardLayout({
     return null;
   }
 
+  const canAccessRegister = session.user.role === "admin" || session.user.role === "manager";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-50">
@@ -45,6 +59,14 @@ export default function DashboardLayout({
               <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">POS Supermarket</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {canAccessRegister && (
+                <Link href="/signup">
+                  <Button variant="outline" size="sm" className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border-indigo-200">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Register User
+                  </Button>
+                </Link>
+              )}
               <Link href="/profile">
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors cursor-pointer">
                   <User className="h-4 w-4 text-slate-500" />
@@ -56,7 +78,12 @@ export default function DashboardLayout({
                   </span>
                 </div>
               </Link>
-              <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/login" })} className="text-slate-600 hover:text-slate-800 hover:bg-slate-100">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                className="text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+              >
                 <LogOut className="h-4 w-4 mr-2" /> Sign out
               </Button>
             </div>

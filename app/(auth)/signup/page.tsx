@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Mail, Lock, User, Shield, UserPlus, ArrowLeft } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { usePOSToast } from "@/hooks/use-toast";
 
 const roles = [
   { value: "cashier", label: "cashier", description: "Handle transactions and customer service" },
@@ -31,6 +31,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const router = useRouter();
+  const { toast } = usePOSToast();
 
   useEffect(() => {
     if (status === "loading") return;

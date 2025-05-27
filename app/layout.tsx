@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
+import { POSToastProvider } from "@/hooks/use-toast";
 import Providers from "@/app/providers";
 
 const inter = Inter({
@@ -29,8 +29,9 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <Providers>
             <main className="flex-1 flex flex-col">
-              {children}
-              <Toaster />
+              <POSToastProvider>
+                {children}
+              </POSToastProvider>
             </main>
           </Providers>
         </div>

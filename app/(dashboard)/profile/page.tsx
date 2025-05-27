@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Mail, Lock, User, Shield } from "lucide-react";
-import { toast } from "sonner";
+import { usePOSToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const router = useRouter();
+  const { toast } = usePOSToast();
 
   useEffect(() => {
     if (status === "unauthenticated") {
