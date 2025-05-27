@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Mail, Lock, User, Shield, AlertTriangle, UserPlus, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, Lock, User, Shield, UserPlus, ArrowLeft } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const roles = [
   { value: "cashier", label: "cashier", description: "Handle transactions and customer service" },
@@ -27,7 +28,6 @@ export default function SignupPage() {
     confirmPassword: "",
     role: "cashier"
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const router = useRouter();
@@ -54,7 +54,6 @@ export default function SignupPage() {
       ...prev,
       [name]: value,
     }));
-    if (error) setError("");
   };
 
   const handleRoleChange = (value: string) => {
@@ -66,27 +65,27 @@ export default function SignupPage() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setError("Full name is required");
+      toast.error("Full name is required");
       return false;
     }
 
     if (!formData.email.trim()) {
-      setError("Email is required");
+      toast.error("Email is required");
       return false;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError("Please enter a valid email address");
+      toast.error("Please enter a valid email address");
       return false;
     }
 
     if (formData.password.length < 4) {
-      setError("Password must be at least 4 characters long");
+      toast.error("Password must be at least 4 characters long");
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return false;
     }
 
@@ -99,7 +98,6 @@ export default function SignupPage() {
     if (!validateForm()) return;
 
     setLoading(true);
-    setError("");
 
     try {
       const response = await fetch("/api/register", {
@@ -116,13 +114,14 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (response.ok) {
+        toast.success("Account created successfully!");
         router.push("/login?message=Account created successfully");
       } else {
-        setError(data.error || "Failed to create account");
+        toast.error(data.error || "Failed to create account");
       }
     } catch (err) {
       console.error("Signup error:" ,err);
-      setError("Network error occurred. Please try again.");
+      toast.error("Network error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -270,12 +269,6 @@ export default function SignupPage() {
                 </div>
               </div>
             </div>
-            {error && (
-              <Alert variant="destructive" className="border-red-200 bg-red-50">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-red-700">{error}</AlertDescription>
-              </Alert>
-            )}
             <div className="flex gap-3 pt-2">
               <Button
                 type="button"

@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, Lock, User, AlertTriangle, CheckCircle, Shield } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Mail, Lock, User, Shield } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
@@ -18,8 +18,6 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const router = useRouter();
@@ -45,39 +43,37 @@ export default function ProfilePage() {
       ...prev,
       [name]: value,
     }));
-    if (error) setError("");
-    if (success) setSuccess("");
   };
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setError("Name is required");
+      toast.error("Name is required");
       return false;
     }
 
     if (!formData.email.trim()) {
-      setError("Email is required");
+      toast.error("Email is required");
       return false;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError("Please enter a valid email address");
+      toast.error("Please enter a valid email address");
       return false;
     }
 
     if (showPasswordSection) {
       if (!formData.currentPassword) {
-        setError("Current password is required to change password");
+        toast.error("Current password is required to change password");
         return false;
       }
 
       if (formData.newPassword && formData.newPassword.length < 4) {
-        setError("New password must be at least 4 characters long");
+        toast.error("New password must be at least 4 characters long");
         return false;
       }
 
       if (formData.newPassword !== formData.confirmPassword) {
-        setError("New passwords do not match");
+        toast.error("New passwords do not match");
         return false;
       }
     }
@@ -91,13 +87,11 @@ export default function ProfilePage() {
     if (!validateForm()) return;
 
     setLoading(true);
-    setError("");
-    setSuccess("");
 
     try {
       const updateData: any = {
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
       };
 
       if (showPasswordSection && formData.newPassword) {
@@ -121,7 +115,7 @@ export default function ProfilePage() {
           email: formData.email,
         });
 
-        setSuccess("Profile updated successfully!");
+        toast.success("Profile updated successfully!");
         setFormData(prev => ({
           ...prev,
           currentPassword: "",
@@ -129,12 +123,14 @@ export default function ProfilePage() {
           confirmPassword: "",
         }));
         setShowPasswordSection(false);
+        toast.success("Profile updated successfully!");
+        window.location.reload();
       } else {
-        setError(data.error || "Failed to update profile");
+        toast.error(data.error || "Failed to update profile");
       }
     } catch (err) {
       console.error("Profile update error:", err);
-      setError("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -283,18 +279,6 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">{success}</AlertDescription>
-              </Alert>
-            )}
             <div className="flex justify-end">
               <Button type="submit" disabled={loading} className="px-8">
                 {loading ? (

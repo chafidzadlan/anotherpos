@@ -55,9 +55,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const { name, email, currentPassword, newPassword } = body;
 
-    if (!name?.trim() || !email?.trim()) {
+    if (!name?.trim()) {
       return NextResponse.json(
-        { error: "Name and email are required" },
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+    if (!email?.trim()) {
+      return NextResponse.json(
+        { error: "Email is required" },
         { status: 400 }
       );
     }
@@ -101,11 +107,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const user = currentUser[0];
 
-    if (email !== user.email) {
+    if (email.trim() !== user.email) {
       const existingUser = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, email.trim()))
         .limit(1);
 
       if (existingUser.length > 0) {
@@ -152,6 +158,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
         { status: 500 }
       );
     }
+
+    console.log("Profile updated successfully:", updatedUser[0]);
 
     return NextResponse.json(
       {

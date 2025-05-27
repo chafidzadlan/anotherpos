@@ -8,13 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Mail, Lock, Store, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Mail, Lock, Store } from "lucide-react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -22,12 +21,11 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!email || !password) {
-      setError("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
 
     setLoading(true);
-    setError("");
 
     try {
       const result = await signIn("credentials", {
@@ -37,7 +35,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        toast.error("Invalid email or password");
       } else {
         const session = await getSession();
         const role = session?.user?.role;
@@ -49,11 +47,12 @@ export default function LoginPage() {
           inventory: "/inventory",
         };
 
+        toast.success("Welcome back!");
         router.push(routes[role as keyof typeof routes] || "/dashboard");
       }
     } catch (err) {
       console.error("Login error:" ,err);
-      setError("Unable to sign in. Please try again.");
+      toast.error("Unable to sign in. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -105,12 +104,6 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            {error && (
-              <Alert variant="destructive" className="border-red-200 bg-red-50">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-red-700">{error}</AlertDescription>
-              </Alert>
-            )}
             <Button
               type="submit"
               className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
