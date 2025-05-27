@@ -6,30 +6,90 @@ import { db } from "@/lib/neon/db";
 import { users } from "@/lib/neon/schema";
 import { eq } from "drizzle-orm";
 
-export async function PUT(request: NextRequest) {
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePassword = (password: string): boolean => {
+  return password.length >= 4;
+};
+
+interface UpdateProfileRequest {
+  name?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
+
+interface ApiResponse {
+  message?: string;
+  error?: string;
+  user?: {
+    id: number;
+    email: string;
+    name: string;
+    role: string;
+  };
+}
+
+export async function PUT(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized access" },
         { status: 401 }
       );
     }
 
-    const { name, email, currentPassword, newPassword } = await request.json();
+    let body: UpdateProfileRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON format" },
+        { status: 400 }
+      );
+    }
 
-    if (!name || !email) {
+    const { name, email, currentPassword, newPassword } = body;
+
+    if (!name?.trim() || !email?.trim()) {
       return NextResponse.json(
         { error: "Name and email are required" },
         { status: 400 }
       );
     }
 
+    if (!validateEmail(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required to change password" },
+          { status: 400 }
+        );
+      }
+
+      if (!validatePassword(newPassword)) {
+        return NextResponse.json(
+          { error: "New password must be at least 4 characters long" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const userId = parseInt(session.user.id);
     const currentUser = await db
       .select()
       .from(users)
-      .where(eq(users.id, parseInt(session.user.id)))
+      .where(eq(users.id, userId))
       .limit(1);
 
     if (!currentUser.length) {
@@ -43,22 +103,22 @@ export async function PUT(request: NextRequest) {
 
     if (email !== user.email) {
       const existingUser = await db
-        .select()
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.email, email))
         .limit(1);
 
       if (existingUser.length > 0) {
         return NextResponse.json(
-          { error: "Email already exists" },
-          { status: 400 }
+          { error: "Email address is already in use" },
+          { status: 409 }
         );
       }
     }
 
-    const updateData: any = {
-      name,
-      email,
+    const updateData: Partial<typeof users.$inferInsert> = {
+      name: name.trim(),
+      email: email.trim(),
       updatedAt: new Date(),
     };
 
@@ -78,23 +138,85 @@ export async function PUT(request: NextRequest) {
     const updatedUser = await db
       .update(users)
       .set(updateData)
-      .where(eq(users.id, parseInt(session.user.id)))
-      .returning();
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+      });
+
+    if (!updatedUser.length) {
+      return NextResponse.json(
+        { error: "Failed to update profile" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
         message: "Profile updated successfully",
-        user: {
-          id: updatedUser[0].id,
-          email: updatedUser[0].email,
-          name: updatedUser[0].name,
-          role: updatedUser[0].role
-        }
+        user: updatedUser[0],
       },
       { status: 200 }
     );
-  } catch (err) {
-    console.error("Profile update error:", err);
+
+  } catch (error) {
+    console.error("Profile update error:", error);
+
+    if (error instanceof Error) {
+      if (error.message.includes('unique constraint')) {
+        return NextResponse.json(
+          { error: "Email address is already in use" },
+          { status: 409 }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(): Promise<NextResponse<ApiResponse>> {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized access" },
+        { status: 401 }
+      );
+    }
+
+    const userId = parseInt(session.user.id);
+    const currentUser = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!currentUser.length) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { user: currentUser[0] },
+      { status: 200 }
+    );
+
+  } catch (error) {
+    console.error("Get profile error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
