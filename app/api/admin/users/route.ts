@@ -1,21 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest } from "next/server";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/neon/db";
 import { users } from "@/lib/neon/schema";
-import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import {
+  validateAdmin,
+  validateUserData,
+  checkEmailExists,
+  createErrorResponse,
+  createSuccessResponse,
+  type CreateUserData
+} from "@/lib/api/user-validation";
 
+// GET /api/admin/users
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 403 }
-      );
-    }
+    const validation = await validateAdmin();
+    if (validation.error) return validation.error;
 
     const allUsers = await db.select({
       id: users.id,
@@ -26,73 +26,42 @@ export async function GET() {
       updatedAt: users.updatedAt,
     }).from(users);
 
-    return NextResponse.json({ users: allUsers });
+    return createSuccessResponse({ users: allUsers });
   } catch (error) {
     console.error("Error fetching users:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
+// POST /api/admin/users
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 403 }
-      );
-    }
+    const validation = await validateAdmin();
+    if (validation.error) return validation.error;
 
     const body = await request.json();
-    const { name, email, password, role } = body;
+    const dataValidation = validateUserData(body, false);
 
-    if (!name || !email || !password || !role) {
-      return NextResponse.json(
-        { error: "All fields are required" },
-        { status: 400 }
-      );
+    if (!dataValidation.valid) {
+      return createErrorResponse(dataValidation.error);
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
+    const userData = dataValidation.data as CreateUserData;
+
+    // Check email uniqueness
+    if (await checkEmailExists(userData.email)) {
+      return createErrorResponse("Email already registered");
     }
 
-    if (password.length < 4) {
-      return NextResponse.json(
-        { error: "Password must be at least 4 characters long" },
-        { status: 400 }
-      );
-    }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
 
-    if (!["admin", "manager", "cashier", "inventory"].includes(role)) {
-      return NextResponse.json(
-        { error: "Invalid role" },
-        { status: 400 }
-      );
-    }
-
-    const existingUser = await db.select().from(users).where(eq(users.email, email));
-    if (existingUser.length > 0) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 400 }
-      );
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-
+    // Create user
     const newUser = await db.insert(users).values({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
+      name: userData.name,
+      email: userData.email,
       password: hashedPassword,
-      role,
+      role: userData.role,
     }).returning({
       id: users.id,
       email: users.email,
@@ -101,18 +70,13 @@ export async function POST(request: NextRequest) {
       createdAt: users.createdAt,
     });
 
-    return NextResponse.json(
-      {
-        message: "User created successfully",
-        user: newUser[0]
-      },
-      { status: 201 }
+    return createSuccessResponse(
+      { user: newUser[0] },
+      "User created successfully",
+      201
     );
   } catch (error) {
     console.error("Error creating user:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return createErrorResponse("Internal server error", 500);
   }
 }
